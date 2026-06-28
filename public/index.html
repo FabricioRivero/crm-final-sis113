@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRM de Citas - SIS113</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; color: #333; }
+    
+    /* SIDEBAR */
+    .sidebar {
+      position: fixed; left: 0; top: 0; width: 240px; height: 100vh;
+      background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+      color: white; padding: 0; z-index: 100;
+    }
+    .sidebar-header {
+      padding: 24px 20px; border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .sidebar-header h1 { font-size: 18px; font-weight: 700; color: #4fc3f7; }
+    .sidebar-header p { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 4px; }
+    .nav-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 20px; cursor: pointer; transition: all 0.2s;
+      border-left: 3px solid transparent; font-size: 14px;
+    }
+    .nav-item:hover { background: rgba(255,255,255,0.08); }
+    .nav-item.active { background: rgba(79,195,247,0.15); border-left-color: #4fc3f7; color: #4fc3f7; }
+    .nav-icon { font-size: 18px; width: 24px; text-align: center; }
+
+    /* MAIN */
+    .main { margin-left: 240px; padding: 28px; min-height: 100vh; }
+    .page { display: none; }
+    .page.active { display: block; }
+    .page-header { margin-bottom: 24px; }
+    .page-header h2 { font-size: 24px; font-weight: 700; color: #1a1a2e; }
+    .page-header p { color: #666; font-size: 14px; margin-top: 4px; }
+
+    /* CARDS ESTADISTICAS */
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+    .stat-card {
+      background: white; border-radius: 12px; padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .stat-card .label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-card .value { font-size: 32px; font-weight: 700; margin: 8px 0 4px; }
+    .stat-card .sub { font-size: 12px; color: #888; }
+    .stat-card.blue .value { color: #2196f3; }
+    .stat-card.green .value { color: #4caf50; }
+    .stat-card.orange .value { color: #ff9800; }
+    .stat-card.purple .value { color: #9c27b0; }
+
+    /* TABLA */
+    .card {
+      background: white; border-radius: 12px; padding: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px;
+    }
+    .card-header {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
+    }
+    .card-header h3 { font-size: 16px; font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: 10px 12px; font-size: 12px; color: #888; text-transform: uppercase; border-bottom: 2px solid #f0f0f0; }
+    td { padding: 12px; font-size: 14px; border-bottom: 1px solid #f5f5f5; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafafa; }
+
+    /* BADGES */
+    .badge {
+      display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500;
+    }
+    .badge.pendiente { background: #fff3e0; color: #e65100; }
+    .badge.confirmada { background: #e8f5e9; color: #2e7d32; }
+    .badge.cancelada { background: #ffebee; color: #c62828; }
+    .badge.completada { background: #e3f2fd; color: #1565c0; }
+    .badge.disponible { background: #e8f5e9; color: #2e7d32; }
+    .badge.ocupado { background: #ffebee; color: #c62828; }
+
+    /* BOTONES */
+    .btn {
+      padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;
+      font-size: 13px; font-weight: 500; transition: all 0.2s;
+    }
+    .btn-primary { background: #1a1a2e; color: white; }
+    .btn-primary:hover { background: #16213e; transform: translateY(-1px); }
+    .btn-success { background: #4caf50; color: white; }
+    .btn-danger { background: #f44336; color: white; }
+    .btn-warning { background: #ff9800; color: white; }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .btn-outline { background: transparent; border: 1px solid #ddd; color: #333; }
+
+    /* MODAL */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: white; border-radius: 16px; padding: 32px; width: 480px;
+      max-width: 90vw; max-height: 90vh; overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    .modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 20px; color: #1a1a2e; }
+
+    /* FORMULARIO */
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 500; color: #555; margin-bottom: 6px; }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%; padding: 10px 14px; border: 1px solid #e0e0e0; border-radius: 8px;
+      font-size: 14px; transition: border-color 0.2s; outline: none;
+    }
+    .form-group input:focus, .form-group select:focus { border-color: #4fc3f7; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+
+    /* CALENDARIO */
+    .calendar-grid {
+      display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
+    }
+    .cal-header { text-align: center; padding: 8px; font-size: 12px; font-weight: 600; color: #888; }
+    .cal-day {
+      min-height: 80px; border: 1px solid #f0f0f0; border-radius: 8px; padding: 6px;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .cal-day:hover { background: #f5f5f5; }
+    .cal-day.today { background: #e3f2fd; border-color: #2196f3; }
+    .cal-day.other-month { opacity: 0.4; }
+    .cal-day-num { font-size: 13px; font-weight: 600; color: #333; }
+    .cal-event {
+      background: #4fc3f7; color: white; font-size: 10px; padding: 2px 4px;
+      border-radius: 4px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    /* TOAST */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px; background: #1a1a2e; color: white;
+      padding: 12px 20px; border-radius: 10px; font-size: 14px; z-index: 9999;
+      transform: translateY(100px); transition: transform 0.3s; box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    .toast.show { transform: translateY(0); }
+    .toast.success { background: #4caf50; }
+    .toast.error { background: #f44336; }
+
+    /* AVATAR */
+    .avatar {
+      width: 36px; height: 36px; border-radius: 50%; display: inline-flex;
+      align-items: center; justify-content: center; font-weight: 700; font-size: 14px; color: white;
+    }
+
+    .empty-state { text-align: center; padding: 40px; color: #999; }
+    .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+    .search-bar { padding: 8px 14px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 14px; width: 240px; outline: none; }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sidebar-header">
+    <h1>✂️ CRM Citas</h1>
+    <p>SIS-113 · UCB San Pablo</p>
+  </div>
+  <nav>
+    <div class="nav-item active" onclick="showPage('dashboard')">
+      <span class="nav-icon">📊</span> Dashboard
+    </div>
+    <div class="nav-item" onclick="showPage('clientes')">
+      <span class="nav-icon">👥</span> Clientes
+    </div>
+    <div class="nav-item" onclick="showPage('citas')">
+      <span class="nav-icon">📅</span> Citas
+    </div>
+    <div class="nav-item" onclick="showPage('servicios')">
+      <span class="nav-icon">💼</span> Servicios
+    </div>
+    <div class="nav-item" onclick="showPage('empleados')">
+      <span class="nav-icon">👨‍💼</span> Empleados
+    </div>
+    <div class="nav-item" onclick="showPage('calendario')">
+      <span class="nav-icon">🗓️</span> Calendario
+    </div>
+  </nav>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main">
+
+  <!-- DASHBOARD -->
+  <div id="page-dashboard" class="page active">
+    <div class="page-header">
+      <h2>Dashboard</h2>
+      <p>Resumen general del negocio</p>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card blue">
+        <div class="label">Total Clientes</div>
+        <div class="value" id="stat-clientes">0</div>
+        <div class="sub">registrados</div>
+      </div>
+      <div class="stat-card green">
+        <div class="label">Citas Hoy</div>
+        <div class="value" id="stat-citas-hoy">0</div>
+        <div class="sub">programadas</div>
+      </div>
+      <div class="stat-card orange">
+        <div class="label">Citas Pendientes</div>
+        <div class="value" id="stat-pendientes">0</div>
+        <div class="sub">por confirmar</div>
+      </div>
+      <div class="stat-card purple">
+        <div class="label">Servicios</div>
+        <div class="value" id="stat-servicios">0</div>
+        <div class="sub">disponibles</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>📅 Próximas Citas</h3></div>
+      <table>
+        <thead><tr><th>Cliente</th><th>Servicio</th><th>Empleado</th><th>Fecha y Hora</th><th>Estado</th></tr></thead>
+        <tbody id="tabla-proximas-citas"><tr><td colspan="5" class="empty-state">No hay citas registradas</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- CLIENTES -->
+  <div id="page-clientes" class="page">
+    <div class="page-header">
+      <h2>Gestión de Clientes</h2>
+      <p>Registro y seguimiento de clientes</p>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <h3>👥 Lista de Clientes</h3>
+        <div style="display:flex;gap:10px">
+          <input type="text" class="search-bar" placeholder="🔍 Buscar cliente..." oninput="filtrarClientes(this.value)">
+          <button class="btn btn-primary" onclick="abrirModalCliente()">+ Nuevo Cliente</button>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Cliente</th><th>Teléfono</th><th>Email</th><th>Citas</th><th>Notas</th><th>Acciones</th></tr></thead>
+        <tbody id="tabla-clientes"><tr><td colspan="6" class="empty-state"><div class="icon">👥</div>No hay clientes registrados</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- CITAS -->
+  <div id="page-citas" class="page">
+    <div class="page-header">
+      <h2>Gestión de Citas</h2>
+      <p>Crear, editar y gestionar citas</p>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <h3>📅 Lista de Citas</h3>
+        <button class="btn btn-primary" onclick="abrirModalCita()">+ Nueva Cita</button>
+      </div>
+      <table>
+        <thead><tr><th>Cliente</th><th>Servicio</th><th>Empleado</th><th>Fecha</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody id="tabla-citas"><tr><td colspan="6" class="empty-state"><div class="icon">📅</div>No hay citas registradas</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SERVICIOS -->
+  <div id="page-servicios" class="page">
+    <div class="page-header">
+      <h2>Catálogo de Servicios</h2>
+      <p>Servicios disponibles con precios y duración</p>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <h3>💼 Servicios</h3>
+        <button class="btn btn-primary" onclick="abrirModalServicio()">+ Nuevo Servicio</button>
+      </div>
+      <table>
+        <thead><tr><th>Servicio</th><th>Categoría</th><th>Precio</th><th>Duración</th><th>Acciones</th></tr></thead>
+        <tbody id="tabla-servicios"><tr><td colspan="5" class="empty-state"><div class="icon">💼</div>No hay servicios registrados</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- EMPLEADOS -->
+  <div id="page-empleados" class="page">
+    <div class="page-header">
+      <h2>Gestión de Empleados</h2>
+      <p>Especialidades y disponibilidad</p>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <h3>👨‍💼 Empleados</h3>
+        <button class="btn btn-primary" onclick="abrirModalEmpleado()">+ Nuevo Empleado</button>
+      </div>
+      <table>
+        <thead><tr><th>Empleado</th><th>Email</th><th>Especialidades</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody id="tabla-empleados"><tr><td colspan="5" class="empty-state"><div class="icon">👨‍💼</div>No hay empleados registrados</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- CALENDARIO -->
+  <div id="page-calendario" class="page">
+    <div class="page-header">
+      <h2>Calendario de Citas</h2>
+      <p>Vista mensual de todas las citas</p>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <h3 id="cal-titulo">Junio 2026</h3>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline" onclick="cambiarMes(-1)">◀ Anterior</button>
+          <button class="btn btn-outline" onclick="cambiarMes(1)">Siguiente ▶</button>
+        </div>
+      </div>
+      <div class="calendar-grid" id="calendar-headers"></div>
+      <div class="calendar-grid" id="calendar-body" style="margin-top:4px"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL CLIENTE -->
+<div class="modal-overlay" id="modal-cliente">
+  <div class="modal">
+    <h3 id="modal-cliente-titulo">➕ Nuevo Cliente</h3>
+    <input type="hidden" id="cliente-id">
+    <div class="form-group"><label>Nombre completo *</label><input type="text" id="cliente-nombre" placeholder="Ej: Juan Pérez"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Teléfono *</label><input type="text" id="cliente-telefono" placeholder="Ej: 70012345"></div>
+      <div class="form-group"><label>Email</label><input type="email" id="cliente-email" placeholder="juan@email.com"></div>
+    </div>
+    <div class="form-group"><label>Notas</label><textarea id="cliente-notas" rows="3" placeholder="Observaciones del cliente..."></textarea></div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="cerrarModales()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarCliente()">Guardar Cliente</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CITA -->
+<div class="modal-overlay" id="modal-cita">
+  <div class="modal">
+    <h3>➕ Nueva Cita</h3>
+    <div class="form-group"><label>Cliente *</label><select id="cita-cliente"><option value="">Seleccionar cliente...</option></select></div>
+    <div class="form-group"><label>Servicio *</label><select id="cita-servicio" onchange="actualizarEmpleados()"><option value="">Seleccionar servicio...</option></select></div>
+    <div class="form-group"><label>Empleado *</label><select id="cita-empleado"><option value="">Seleccionar empleado...</option></select></div>
+    <div class="form-row">
+      <div class="form-group"><label>Fecha *</label><input type="date" id="cita-fecha"></div>
+      <div class="form-group"><label>Hora *</label><input type="time" id="cita-hora"></div>
+    </div>
+    <div class="form-group"><label>Notas</label><textarea id="cita-notas" rows="2" placeholder="Indicaciones especiales..."></textarea></div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="cerrarModales()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarCita()">Agendar Cita</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SERVICIO -->
+<div class="modal-overlay" id="modal-servicio">
+  <div class="modal">
+    <h3>➕ Nuevo Servicio</h3>
+    <div class="form-group"><label>Nombre del servicio *</label><input type="text" id="servicio-nombre" placeholder="Ej: Corte de cabello"></div>
+    <div class="form-group">
+      <label>Categoría *</label>
+      <select id="servicio-categoria">
+        <option value="Corte">Corte</option>
+        <option value="Coloración">Coloración</option>
+        <option value="Tratamiento">Tratamiento</option>
+        <option value="Estética">Estética</option>
+        <option value="Médico">Médico</option>
+        <option value="Técnico">Técnico</option>
+        <option value="Otro">Otro</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Precio (Bs.) *</label><input type="number" id="servicio-precio" placeholder="0" min="0"></div>
+      <div class="form-group"><label>Duración (min) *</label><input type="number" id="servicio-duracion" placeholder="30" min="5"></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="cerrarModales()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarServicio()">Guardar Servicio</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EMPLEADO -->
+<div class="modal-overlay" id="modal-empleado">
+  <div class="modal">
+    <h3>➕ Nuevo Empleado</h3>
+    <div class="form-group"><label>Nombre completo *</label><input type="text" id="empleado-nombre" placeholder="Ej: María García"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Teléfono *</label><input type="text" id="empleado-telefono" placeholder="70012345"></div>
+      <div class="form-group"><label>Email</label><input type="email" id="empleado-email" placeholder="maria@negocio.com"></div>
+    </div>
+    <div class="form-group"><label>Especialidades (separadas por coma) *</label><input type="text" id="empleado-especialidades" placeholder="Ej: Corte, Coloración, Peinado"></div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="cerrarModales()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarEmpleado()">Guardar Empleado</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// CLASES TypeScript-style en JavaScript (misma lógica que src/)
+// ============================================================
+
+// Clase abstracta base
+class Persona {
+  constructor(id, nombre, telefono, email) {
+    if (new.target === Persona) throw new Error('Persona es abstracta');
+    this.id = id; this.nombre = nombre;
+    this.telefono = telefono; this.email = email;
+  }
+  getId() { return this.id; }
+  getNombre() { return this.nombre; }
+  getRol() { throw new Error('getRol() debe implementarse'); }
+  toJSON() { return { id: this.id, nombre: this.nombre, telefono: this.telefono, email: this.email, rol: this.getRol() }; }
+}
+
+class Cliente extends Persona {
+  constructor(id, nombre, telefono, email, notas = '') {
+    super(id, nombre, telefono, email);
+    this.notas = notas; this.historialCitas = [];
+  }
+  getRol() { return 'Cliente'; }
+  agregarCita(citaId) { this.historialCitas.push(citaId); }
+  toJSON() { return { ...super.toJSON(), notas: this.notas, historialCitas: this.historialCitas }; }
+}
+
+class Empleado extends Persona {
+  constructor(id, nombre, telefono, email, especialidades) {
+    super(id, nombre, telefono, email);
+    this.especialidades = especialidades; this.disponible = true;
+  }
+  getRol() { return 'Empleado'; }
+  toJSON() { return { ...super.toJSON(), especialidades: this.especialidades, disponible: this.disponible }; }
+}
+
+class Servicio {
+  constructor(id, nombre, precio, duracion, categoria) {
+    if (precio < 0) throw new Error('Precio no puede ser negativo');
+    if (duracion <= 0) throw new Error('Duración debe ser mayor a 0');
+    this.id = id; this.nombre = nombre; this.precio = precio;
+    this.duracionMinutos = duracion; this.categoria = categoria;
+  }
+  getId() { return this.id; }
+  toJSON() { return { id: this.id, nombre: this.nombre, precio: this.precio, duracionMinutos: this.duracionMinutos, categoria: this.categoria }; }
+}
+
+class Cita {
+  constructor(id, clienteId, empleadoId, servicioId, fecha, notas = '') {
+    this.id = id; this.clienteId = clienteId; this.empleadoId = empleadoId;
+    this.servicioId = servicioId; this.fecha = new Date(fecha);
+    this.estado = 'pendiente'; this.notas = notas;
+  }
+  getId() { return this.id; }
+  confirmar() { this.estado = 'confirmada'; }
+  cancelar() { this.estado = 'cancelada'; }
+  completar() { this.estado = 'completada'; }
+  toJSON() { return { id: this.id, clienteId: this.clienteId, empleadoId: this.empleadoId, servicioId: this.servicioId, fecha: this.fecha.toISOString(), estado: this.estado, notas: this.notas }; }
+}
+
+// Repositorio genérico
+class Repositorio {
+  constructor(nombre) {
+    this.nombre = nombre; this.items = new Map();
+    this._cargar();
+  }
+  agregar(item) {
+    if (this.items.has(item.getId())) throw new Error(`${this.nombre} ya existe`);
+    this.items.set(item.getId(), item); this._guardar();
+  }
+  obtener(id) {
+    const item = this.items.get(id);
+    if (!item) throw new Error(`${this.nombre} no encontrado`);
+    return item;
+  }
+  obtenerTodos() { return Array.from(this.items.values()); }
+  actualizar(item) { this.items.set(item.getId(), item); this._guardar(); }
+  eliminar(id) { this.items.delete(id); this._guardar(); }
+  contar() { return this.items.size; }
+  _guardar() {
+    try { localStorage.setItem(`crm_${this.nombre}`, JSON.stringify(this.obtenerTodos().map(i => i.toJSON()))); }
+    catch(e) { console.error('Error guardando:', e); }
+  }
+  _cargar() { /* se carga en cada módulo con reconstruct */ }
+}
+
+// ============================================================
+// ESTADO GLOBAL
+// ============================================================
+const repos = {
+  clientes: new Repositorio('clientes'),
+  empleados: new Repositorio('empleados'),
+  servicios: new Repositorio('servicios'),
+  citas: new Repositorio('citas')
+};
+
+// Cargar datos desde localStorage
+function cargarDatos() {
+  try {
+    const dc = localStorage.getItem('crm_clientes');
+    if (dc) JSON.parse(dc).forEach(d => {
+      const c = new Cliente(d.id, d.nombre, d.telefono, d.email, d.notas);
+      c.historialCitas = d.historialCitas || [];
+      repos.clientes.items.set(c.id, c);
+    });
+    const de = localStorage.getItem('crm_empleados');
+    if (de) JSON.parse(de).forEach(d => {
+      const e = new Empleado(d.id, d.nombre, d.telefono, d.email, d.especialidades);
+      e.disponible = d.disponible;
+      repos.empleados.items.set(e.id, e);
+    });
+    const ds = localStorage.getItem('crm_servicios');
+    if (ds) JSON.parse(ds).forEach(d => {
+      const s = new Servicio(d.id, d.nombre, d.precio, d.duracionMinutos, d.categoria);
+      repos.servicios.items.set(s.id, s);
+    });
+    const dci = localStorage.getItem('crm_citas');
+    if (dci) JSON.parse(dci).forEach(d => {
+      const ci = new Cita(d.id, d.clienteId, d.empleadoId, d.servicioId, d.fecha, d.notas);
+      ci.estado = d.estado;
+      repos.citas.items.set(ci.id, ci);
+    });
+  } catch(e) { console.error('Error cargando datos:', e); }
+}
+
+function generarId() { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
+function colorAvatar(nombre) {
+  const colores = ['#e91e63','#9c27b0','#3f51b5','#2196f3','#009688','#ff5722','#795548'];
+  return colores[nombre.charCodeAt(0) % colores.length];
+}
+
+// ============================================================
+// NAVEGACIÓN
+// ============================================================
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (page === 'dashboard') renderDashboard();
+  if (page === 'clientes') renderClientes();
+  if (page === 'citas') renderCitas();
+  if (page === 'servicios') renderServicios();
+  if (page === 'empleados') renderEmpleados();
+  if (page === 'calendario') renderCalendario();
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+function renderDashboard() {
+  document.getElementById('stat-clientes').textContent = repos.clientes.contar();
+  document.getElementById('stat-servicios').textContent = repos.servicios.contar();
+  const hoy = new Date().toDateString();
+  const citas = repos.citas.obtenerTodos();
+  const citasHoy = citas.filter(c => new Date(c.fecha).toDateString() === hoy).length;
+  const pendientes = citas.filter(c => c.estado === 'pendiente').length;
+  document.getElementById('stat-citas-hoy').textContent = citasHoy;
+  document.getElementById('stat-pendientes').textContent = pendientes;
+
+  const proximas = citas.filter(c => c.estado !== 'cancelada')
+    .sort((a,b) => new Date(a.fecha) - new Date(b.fecha)).slice(0,5);
+  const tbody = document.getElementById('tabla-proximas-citas');
+  if (proximas.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No hay citas registradas</td></tr>'; return; }
+  tbody.innerHTML = proximas.map(c => {
+    const cliente = repos.clientes.items.get(c.clienteId);
+    const servicio = repos.servicios.items.get(c.servicioId);
+    const empleado = repos.empleados.items.get(c.empleadoId);
+    return `<tr>
+      <td>${cliente ? cliente.nombre : 'N/A'}</td>
+      <td>${servicio ? servicio.nombre : 'N/A'}</td>
+      <td>${empleado ? empleado.nombre : 'N/A'}</td>
+      <td>${new Date(c.fecha).toLocaleString('es-BO')}</td>
+      <td><span class="badge ${c.estado}">${c.estado}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ============================================================
+// CLIENTES
+// ============================================================
+function renderClientes(filtro = '') {
+  const clientes = repos.clientes.obtenerTodos().filter(c =>
+    c.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
+    c.telefono.includes(filtro)
+  );
+  const tbody = document.getElementById('tabla-clientes');
+  if (clientes.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><div class="icon">👥</div>No hay clientes registrados</td></tr>'; return; }
+  tbody.innerHTML = clientes.map(c => `<tr>
+    <td><div style="display:flex;align-items:center;gap:10px">
+      <div class="avatar" style="background:${colorAvatar(c.nombre)}">${c.nombre.charAt(0).toUpperCase()}</div>
+      <strong>${c.nombre}</strong></div></td>
+    <td>${c.telefono}</td>
+    <td>${c.email || '-'}</td>
+    <td><span class="badge confirmada">${c.historialCitas.length} citas</span></td>
+    <td>${c.notas || '-'}</td>
+    <td>
+      <button class="btn btn-warning btn-sm" onclick="editarCliente('${c.id}')">✏️</button>
+      <button class="btn btn-danger btn-sm" onclick="eliminarCliente('${c.id}')">🗑️</button>
+    </td>
+  </tr>`).join('');
+}
+
+function filtrarClientes(valor) { renderClientes(valor); }
+
+function abrirModalCliente() {
+  document.getElementById('cliente-id').value = '';
+  document.getElementById('cliente-nombre').value = '';
+  document.getElementById('cliente-telefono').value = '';
+  document.getElementById('cliente-email').value = '';
+  document.getElementById('cliente-notas').value = '';
+  document.getElementById('modal-cliente-titulo').textContent = '➕ Nuevo Cliente';
+  document.getElementById('modal-cliente').classList.add('active');
+}
+
+function editarCliente(id) {
+  try {
+    const c = repos.clientes.obtener(id);
+    document.getElementById('cliente-id').value = c.id;
+    document.getElementById('cliente-nombre').value = c.nombre;
+    document.getElementById('cliente-telefono').value = c.telefono;
+    document.getElementById('cliente-email').value = c.email;
+    document.getElementById('cliente-notas').value = c.notas;
+    document.getElementById('modal-cliente-titulo').textContent = '✏️ Editar Cliente';
+    document.getElementById('modal-cliente').classList.add('active');
+  } catch(e) { mostrarToast(e.message, 'error'); }
+}
+
+function guardarCliente() {
+  const nombre = document.getElementById('cliente-nombre').value.trim();
+  const telefono = document.getElementById('cliente-telefono').value.trim();
+  if (!nombre || !telefono) { mostrarToast('Nombre y teléfono son obligatorios', 'error'); return; }
+  try {
+    const id = document.getElementById('cliente-id').value;
+    if (id) {
+      const c = repos.clientes.obtener(id);
+      c.nombre = nombre; c.telefono = telefono;
+      c.email = document.getElementById('cliente-email').value;
+      c.notas = document.getElementById('cliente-notas').value;
+      repos.clientes.actualizar(c);
+      mostrarToast('Cliente actualizado ✓', 'success');
+    } else {
+      const c = new Cliente(generarId(), nombre, telefono,
+        document.getElementById('cliente-email').value,
+        document.getElementById('cliente-notas').value);
+      repos.clientes.agregar(c);
+      mostrarToast('Cliente registrado ✓', 'success');
+    }
+    cerrarModales(); renderClientes(); renderDashboard();
+  } catch(e) { mostrarToast(e.message, 'error'); }
+}
+
+function eliminarCliente(id) {
+  if (!confirm('¿Eliminar este cliente?')) return;
+  try { repos.clientes.eliminar(id); renderClientes(); renderDashboard(); mostrarToast('Cliente eliminado', 'success'); }
+  catch(e) { mostrarToast(e.message, 'error'); }
+}
+
+// ============================================================
+// SERVICIOS
+// ============================================================
+function renderServicios() {
+  const servicios = repos.servicios.obtenerTodos();
+  const tbody = document.getElementById('tabla-servicios');
+  if (servicios.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><div class="icon">💼</div>No hay servicios</td></tr>'; return; }
+  tbody.innerHTML = servicios.map(s => `<tr>
+    <td><strong>${s.nombre}</strong></td>
+    <td><span class="badge confirmada">${s.categoria}</span></td>
+    <td><strong>Bs. ${s.precio}</strong></td>
+    <td>⏱️ ${s.duracionMinutos} min</td>
+    <td><button class="btn btn-danger btn-sm" onclick="eliminarServicio('${s.id}')">🗑️</button></td>
+  </tr>`).join('');
+}
+
+function abrirModalServicio() {
+  document.getElementById('servicio-nombre').value = '';
+  document.getElementById('servicio-precio').value = '';
+  document.getElementById('servicio-duracion').value = '';
+  document.getElementById('modal-servicio').classList.add('active');
+}
+
+function guardarServicio() {
+  const nombre = document.getElementById('servicio-nombre').value.trim();
+  const precio = parseFloat(document.getElementById('servicio-precio').value);
+  const duracion = parseInt(document.getElementById('servicio-duracion').value);
+  const categoria = document.getElementById('servicio-categoria').value;
+  if (!nombre || isNaN(precio) || isNaN(duracion)) { mostrarToast('Completa todos los campos', 'error'); return; }
+  try {
+    const s = new Servicio(generarId(), nombre, precio, duracion, categoria);
+    repos.servicios.agregar(s);
+    cerrarModales(); renderServicios(); renderDashboard();
+    mostrarToast('Servicio guardado ✓', 'success');
+  } catch(e) { mostrarToast(e.message, 'error'); }
+}
+
+function eliminarServicio(id) {
+  if (!confirm('¿Eliminar este servicio?')) return;
+  repos.servicios.eliminar(id); renderServicios();
+  mostrarToast('Servicio eliminado', 'success');
+}
+
+// ============================================================
+// EMPLEADOS
+// ============================================================
+function renderEmpleados() {
+  const empleados = repos.empleados.obtenerTodos();
+  const tbody = document.getElementById('tabla-empleados');
+  if (empleados.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><div class="icon">👨‍💼</div>No hay empleados</td></tr>'; return; }
+  tbody.innerHTML = empleados.map(e => `<tr>
+    <td><div style="display:flex;align-items:center;gap:10px">
+      <div class="avatar" style="background:${colorAvatar(e.nombre)}">${e.nombre.charAt(0)}</div>
+      <strong>${e.nombre}</strong></div></td>
+    <td>${e.email || '-'}</td>
+    <td>${e.especialidades.join(', ')}</td>
+    <td><span class="badge ${e.disponible ? 'disponible' : 'ocupado'}">${e.disponible ? 'Disponible' : 'Ocupado'}</span></td>
+    <td>
+      <button class="btn btn-sm ${e.disponible ? 'btn-warning' : 'btn-success'}" onclick="toggleDisponible('${e.id}')">
+        ${e.disponible ? '🔴 Ocupar' : '🟢 Liberar'}
+      </button>
+      <button class="btn btn-danger btn-sm" onclick="eliminarEmpleado('${e.id}')">🗑️</button>
+    </td>
+  </tr>`).join('');
+}
+
+function abrirModalEmpleado() {
+  ['empleado-nombre','empleado-telefono','empleado-email','empleado-especialidades'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('modal-empleado').classList.add('active');
+}
+
+function guardarEmpleado() {
+  const nombre = document.getElementById('empleado-nombre').value.trim();
+  const telefono = document.getElementById('empleado-telefono').value.trim();
+  const especialidades = document.getElementById('empleado-especialidades').value.split(',').map(s => s.trim()).filter(Boolean);
+  if (!nombre || !telefono || especialidades.length === 0) { mostrarToast('Completa todos los campos', 'error'); return; }
+  try {
+    const e = new Empleado(generarId(), nombre, telefono, document.getElementById('empleado-email').value, especialidades);
+    repos.empleados.agregar(e);
+    cerrarModales(); renderEmpleados();
+    mostrarToast('Empleado registrado ✓', 'success');
+  } catch(err) { mostrarToast(err.message, 'error'); }
+}
+
+function toggleDisponible(id) {
+  try {
+    const e = repos.empleados.obtener(id);
+    e.disponible = !e.disponible;
+    repos.empleados.actualizar(e); renderEmpleados();
+  } catch(err) { mostrarToast(err.message, 'error'); }
+}
+
+function eliminarEmpleado(id) {
+  if (!confirm('¿Eliminar este empleado?')) return;
+  repos.empleados.eliminar(id); renderEmpleados();
+  mostrarToast('Empleado eliminado', 'success');
+}
+
+// ============================================================
+// CITAS
+// ============================================================
+function renderCitas() {
+  const citas = repos.citas.obtenerTodos().sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+  const tbody = document.getElementById('tabla-citas');
+  if (citas.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><div class="icon">📅</div>No hay citas</td></tr>'; return; }
+  tbody.innerHTML = citas.map(c => {
+    const cliente = repos.clientes.items.get(c.clienteId);
+    const servicio = repos.servicios.items.get(c.servicioId);
+    const empleado = repos.empleados.items.get(c.empleadoId);
+    return `<tr>
+      <td><strong>${cliente ? cliente.nombre : 'N/A'}</strong></td>
+      <td>${servicio ? servicio.nombre : 'N/A'}</td>
+      <td>${empleado ? empleado.nombre : 'N/A'}</td>
+      <td>${new Date(c.fecha).toLocaleString('es-BO')}</td>
+      <td><span class="badge ${c.estado}">${c.estado}</span></td>
+      <td>
+        ${c.estado === 'pendiente' ? `<button class="btn btn-success btn-sm" onclick="cambiarEstadoCita('${c.id}','confirmada')">✓</button>` : ''}
+        ${c.estado !== 'cancelada' && c.estado !== 'completada' ? `<button class="btn btn-danger btn-sm" onclick="cambiarEstadoCita('${c.id}','cancelada')">✗</button>` : ''}
+        ${c.estado === 'confirmada' ? `<button class="btn btn-primary btn-sm" onclick="cambiarEstadoCita('${c.id}','completada')">✅</button>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function abrirModalCita() {
+  const selCliente = document.getElementById('cita-cliente');
+  const selServicio = document.getElementById('cita-servicio');
+  const selEmpleado = document.getElementById('cita-empleado');
+  selCliente.innerHTML = '<option value="">Seleccionar cliente...</option>' +
+    repos.clientes.obtenerTodos().map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+  selServicio.innerHTML = '<option value="">Seleccionar servicio...</option>' +
+    repos.servicios.obtenerTodos().map(s => `<option value="${s.id}">${s.nombre} - Bs.${s.precio}</option>`).join('');
+  selEmpleado.innerHTML = '<option value="">Seleccionar empleado...</option>' +
+    repos.empleados.obtenerTodos().map(e => `<option value="${e.id}">${e.nombre}</option>`).join('');
+  document.getElementById('cita-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('cita-hora').value = '09:00';
+  document.getElementById('cita-notas').value = '';
+  document.getElementById('modal-cita').classList.add('active');
+}
+
+function guardarCita() {
+  const clienteId = document.getElementById('cita-cliente').value;
+  const servicioId = document.getElementById('cita-servicio').value;
+  const empleadoId = document.getElementById('cita-empleado').value;
+  const fecha = document.getElementById('cita-fecha').value;
+  const hora = document.getElementById('cita-hora').value;
+  if (!clienteId || !servicioId || !empleadoId || !fecha || !hora) { mostrarToast('Completa todos los campos', 'error'); return; }
+  try {
+    const fechaCompleta = new Date(`${fecha}T${hora}`);
+    const cita = new Cita(generarId(), clienteId, empleadoId, servicioId, fechaCompleta, document.getElementById('cita-notas').value);
+    repos.citas.agregar(cita);
+    const cliente = repos.clientes.items.get(clienteId);
+    if (cliente) { cliente.agregarCita(cita.id); repos.clientes.actualizar(cliente); }
+    cerrarModales(); renderCitas(); renderDashboard();
+    mostrarToast('Cita agendada ✓', 'success');
+  } catch(e) { mostrarToast(e.message, 'error'); }
+}
+
+function cambiarEstadoCita(id, nuevoEstado) {
+  try {
+    const cita = repos.citas.obtener(id);
+    if (nuevoEstado === 'confirmada') cita.confirmar();
+    else if (nuevoEstado === 'cancelada') cita.cancelar();
+    else if (nuevoEstado === 'completada') cita.completar();
+    repos.citas.actualizar(cita); renderCitas(); renderDashboard();
+    mostrarToast(`Cita ${nuevoEstado} ✓`, 'success');
+  } catch(e) { mostrarToast(e.message, 'error'); }
+}
+
+// ============================================================
+// CALENDARIO
+// ============================================================
+let calFecha = new Date();
+
+function renderCalendario() {
+  const año = calFecha.getFullYear();
+  const mes = calFecha.getMonth();
+  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  document.getElementById('cal-titulo').textContent = `${meses[mes]} ${año}`;
+
+  const headers = document.getElementById('calendar-headers');
+  const dias = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  headers.innerHTML = dias.map(d => `<div class="cal-header">${d}</div>`).join('');
+
+  const primerDia = new Date(año, mes, 1).getDay();
+  const diasEnMes = new Date(año, mes + 1, 0).getDate();
+  const hoy = new Date();
+  const citas = repos.citas.obtenerTodos();
+
+  let html = '';
+  for (let i = 0; i < primerDia; i++) html += '<div class="cal-day other-month"></div>';
+  for (let d = 1; d <= diasEnMes; d++) {
+    const esHoy = d === hoy.getDate() && mes === hoy.getMonth() && año === hoy.getFullYear();
+    const citasDelDia = citas.filter(c => {
+      const fc = new Date(c.fecha);
+      return fc.getDate() === d && fc.getMonth() === mes && fc.getFullYear() === año;
+    });
+    html += `<div class="cal-day ${esHoy ? 'today' : ''}">
+      <div class="cal-day-num">${d}</div>
+      ${citasDelDia.slice(0,2).map(c => {
+        const cliente = repos.clientes.items.get(c.clienteId);
+        return `<div class="cal-event">${cliente ? cliente.nombre.split(' ')[0] : '?'}</div>`;
+      }).join('')}
+      ${citasDelDia.length > 2 ? `<div class="cal-event" style="background:#666">+${citasDelDia.length-2} más</div>` : ''}
+    </div>`;
+  }
+  document.getElementById('calendar-body').innerHTML = html;
+}
+
+function cambiarMes(delta) {
+  calFecha.setMonth(calFecha.getMonth() + delta);
+  renderCalendario();
+}
+
+// ============================================================
+// UTILIDADES
+// ============================================================
+function cerrarModales() {
+  document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
+}
+
+function mostrarToast(msg, tipo = '') {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg; toast.className = `toast ${tipo} show`;
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// Cerrar modal al hacer click fuera
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => { if (e.target === overlay) cerrarModales(); });
+});
+
+// ============================================================
+// DATOS DE EJEMPLO
+// ============================================================
+function cargarDatosEjemplo() {
+  if (repos.clientes.contar() > 0) return;
+  try {
+    const clientes = [
+      new Cliente(generarId(), 'María López', '70012345', 'maria@email.com', 'Cliente frecuente'),
+      new Cliente(generarId(), 'Carlos Rodríguez', '71234567', 'carlos@email.com', ''),
+      new Cliente(generarId(), 'Ana Gutiérrez', '69876543', 'ana@email.com', 'Alérgica a tintes'),
+    ];
+    clientes.forEach(c => repos.clientes.agregar(c));
+
+    const empleados = [
+      new Empleado(generarId(), 'Pedro Mamani', '77001122', 'pedro@crm.com', ['Corte', 'Barba']),
+      new Empleado(generarId(), 'Lucía Quispe', '76543210', 'lucia@crm.com', ['Coloración', 'Peinado', 'Tratamiento']),
+    ];
+    empleados.forEach(e => repos.empleados.agregar(e));
+
+    const servicios = [
+      new Servicio(generarId(), 'Corte de cabello', 50, 30, 'Corte'),
+      new Servicio(generarId(), 'Coloración completa', 200, 120, 'Coloración'),
+      new Servicio(generarId(), 'Barba y bigote', 30, 20, 'Corte'),
+      new Servicio(generarId(), 'Tratamiento capilar', 150, 60, 'Tratamiento'),
+    ];
+    servicios.forEach(s => repos.servicios.agregar(s));
+
+    const hoy = new Date();
+    const cita1 = new Cita(generarId(), clientes[0].id, empleados[0].id, servicios[0].id, new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 10, 0));
+    const cita2 = new Cita(generarId(), clientes[1].id, empleados[1].id, servicios[1].id, new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 14, 30));
+    cita2.confirmar();
+    [cita1, cita2].forEach(c => repos.citas.agregar(c));
+  } catch(e) { console.error('Error cargando ejemplos:', e); }
+}
+
+// INICIO
+cargarDatos();
+cargarDatosEjemplo();
+renderDashboard();
+</script>
+</body>
+</html>
